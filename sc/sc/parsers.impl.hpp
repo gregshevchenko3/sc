@@ -1,31 +1,30 @@
 #pragma once
 
-#include <cstring>
-#include "maths_operations.h"
-#include "ErrorHandling.h"
-#include "parsers.hpp"
-
 template<typename Tnumeric>
-char * subexpression(char * subexpression, Tnumeric& result)
+char * binary_operator_(const parser_extra<action<Tnumeric>, operand_parser<Tnumeric>> extra, char * expression, Tnumeric & result)
 {
-	char* tmp = subexpression;
-	subexpression = white_spaces_(subexpression, result);
-	if (*subexpression == '(') {
-		if (*++subexpression == ')') {
-			result = 0;
-			return ++subexpression;
+	char* next = expression;
+	next = extra.second(expression, result);
+	expression = next;
+	while (next) {
+		Tnumeric _rhs;
+		auto it = extra.first.begin(), it_end = extra.first.end();
+		while (it != it_end) {
+			auto len = strlen(it->first);
+			if (!strncmp(expression, it->first, len)) {
+				expression += len;
+				next = extra.second(expression, _rhs);
+				it->second(result, _rhs);
+				expression = next;
+				break;
+			}
+			it++;
 		}
-		subexpression = addings_(subexpression, result);
-		if (*subexpression == ')')
-			++subexpression;
-		else
-			if (*subexpression == 0)
-				ParserError("')' missing", tmp, BOOST_CURRENT_FUNCTION, __FILE__, __LINE__);
+		if (it == it_end) break;
 	}
-	else
-		subexpression = number_(subexpression, result);
-	return white_spaces_(subexpression, result);
+	return expression;
 }
+
 template<typename Tnumeric>
 char * unary_minus_(char * expression, Tnumeric& result)
 {
@@ -57,81 +56,4 @@ char* factorial_(char* expression, Tnumeric& result) {
 	else
 		ParserError("Operand missing", expression, BOOST_CURRENT_FUNCTION, __FILE__, __LINE__);
 	return next;
-}
-template<typename Tnumeric>
-char* pow_(char* expression, Tnumeric& result) {
-	Tnumeric _lhs;
-	char* next = expression;
-
-	next = unary_minus_(expression, result);
-	expression = next;
-
-	while (next) {
-		if (*next == '^') {
-			expression = ++next;
-			next = factorial_(expression, _lhs);
-			result = pow_operation(result, _lhs);
-			expression = next;
-		}
-		else
-			break;
-	}
-	return expression;
-}
-template<typename Tnumeric>
-char* factors_(char* expression, Tnumeric& result) {
-	Tnumeric _lhs;
-	char* next = expression;
-
-	next = pow_(expression, result);
-	expression = next;
-
-	while (next) {
-		switch (*next) {
-		case '*':
-			expression = ++next;
-			next = pow_(expression, _lhs);
-			result *= _lhs;
-			expression = next;
-			break;
-		case '/':
-			expression = ++next;
-			next = pow_(expression, _lhs);
-			result /= _lhs;
-			expression = next;
-			break;
-		default:
-			next = nullptr;
-		}
-	}
-	return expression;
-}
-/*
- * adding and substracting
- */
-template<typename Tnumeric>
-char* addings_(char* expression, Tnumeric& result) {
-	Tnumeric _lhs;
-	char* next = expression;
-
-	next = factors_(expression, result);
-	expression = next;
-
-	while (next) {
-		switch (*next) {
-		case '+':
-			next = factors_(++expression, _lhs);
-			result += _lhs;
-			expression = next;
-			break;
-		case '-':
-			next = factors_(++expression, _lhs);
-			result -= _lhs;
-			expression = next;
-			break;
-		default:
-			next = nullptr;
-		}
-	}
-	return expression;
 }

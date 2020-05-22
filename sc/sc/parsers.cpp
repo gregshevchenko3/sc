@@ -1,46 +1,60 @@
 #include "parsers.hpp"
 
-template<> char* number_<double>(char* expression, double& result) {
-	char* end = nullptr;
-	result = strtod(expression, &end);
-	if (end == expression) {
-		return nullptr;
-	}
-	else
-		return end;
-}
+const parser_extra<action<matrix_row<double>>, operand_parser<matrix_row<double>>> pow_extra = {
+	{
+		{"^", [](auto& a, const auto& b) {auto c = pow_operation(a, b); a = c; }},
+	},
+	unary_minus_<matrix_row<double>>
+};
+const parser_extra<action<matrix_row<double>>, operand_parser<matrix_row<double>>> factors_extra = {
+	{
+		{"*", [](auto& a, const auto& b) {a *= b; }},
+		{"/", [](auto& a, const auto& b) {a /= b; }},
+	},
+	boost::bind(binary_operator_<matrix_row<double>>, pow_extra, boost::placeholders::_1, boost::placeholders::_2)
+};
+const parser_extra<action<matrix_row<double>>, operand_parser<matrix_row<double>>> addings_extra = {
+	{
+		{"+", [](auto& a, const auto& b) {a += b; }},
+		{"-", [](auto& a, const auto& b) {a -= b; }},
+	},
+	boost::bind(binary_operator_<matrix_row<double>>, factors_extra, boost::placeholders::_1, boost::placeholders::_2)
+};
+const parser_extra<action<matrix_row<double>>, operand_parser<matrix_row<double>>> comma_extra = {
+	{
+		{",", [](auto& a, const auto& b) {a.push_back(b.back()); }},
+	},
+	boost::bind(binary_operator_<matrix_row<double>>, addings_extra, boost::placeholders::_1, boost::placeholders::_2)
+};
 
-template<>
-char* comma_<matrix_row<double>>(char * expression, matrix_row<double>& result)
-{
-	char* next = expression;
-	matrix_row<double> _rhs;
-	next = addings_(expression, result);
-	expression = next;
-
-	while (next) {
-		if (*next == ',') {
-			expression = ++next;
-			next = addings_(expression, _rhs);
-			result.push_back(_rhs.back());
-			expression = next;
-		}
-		else
-			break;
-	}
-	return expression;
-}
-
+//template<>
+//char* comma_<matrix_row<double>>(char * expression, matrix_row<double>& result)
+//{
+//	char* next = expression;
+//	matrix_row<double> _rhs;
+//	next = addings_(expression, result);
+//	expression = next;
+//
+//	while (next) {
+//		if (*next == ',') {
+//			expression = ++next;
+//			next = addings_(expression, _rhs);
+//			result.push_back(_rhs.back());
+//			expression = next;
+//		}
+//		else
+//			break;
+//	}
+//	return expression;
+//}
 template<> char* number_<matrix_row<double>>(char* expression, matrix_row<double>& result) {
 	char* end = nullptr;
 	result.push_back(strtod(expression, &end));
-	if (end == expression) {
+	if (end == expression) 
 		return function_(expression, result);
-	}
 	else
 		return end;
 }
-
 template <> char* subexpression<matrix_row<double>>(char* subexpression, matrix_row<double>& result) {
 	char* tmp = subexpression;
 	subexpression = white_spaces_(subexpression, result);
@@ -51,7 +65,7 @@ template <> char* subexpression<matrix_row<double>>(char* subexpression, matrix_
 				result.back() = 0.;
 			return ++subexpression;
 		}
-		subexpression = comma_(++subexpression, result);
+		subexpression = binary_operator_(comma_extra, subexpression, result);
 		if (*subexpression == ')')
 			++subexpression;
 		else
@@ -62,7 +76,6 @@ template <> char* subexpression<matrix_row<double>>(char* subexpression, matrix_
 		subexpression = number_(subexpression, result);
 	return white_spaces_(subexpression, result);
 }
-
 char* function_(char * expression, matrix_row<double>& result)
 {
 	std::string func_name = "";
@@ -71,16 +84,16 @@ char* function_(char * expression, matrix_row<double>& result)
 		(*expression >= 'A' && *expression <= 'Z') ||
 		(*expression >= '0' && *expression <= '9') ||
 		*expression == '_') func_name.push_back(*expression++);
+	if (func_name.empty()) return nullptr;
 	matrix_row<double> parameters;
 	char* funcN = subexpression(expression, parameters);
 	functionality(func_name.c_str(), parameters, expression, result);
 	return funcN;
 }
-
 template<> matrix_row<double> execute<matrix_row<double>>(char * expression)
 {
 	matrix_row<double> result;
-	char* tmp = comma_(expression, result);
+	char* tmp = binary_operator_(comma_extra, expression, result);
 	if (!tmp || *tmp != 0) {
 		std::string error = "Unexpected char '";
 		error.push_back(*tmp);
@@ -90,4 +103,3 @@ template<> matrix_row<double> execute<matrix_row<double>>(char * expression)
 	else
 		return result;
 }
-
