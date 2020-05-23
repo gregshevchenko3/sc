@@ -26,27 +26,6 @@ const parser_extra<action<matrix_row<double>>, operand_parser<matrix_row<double>
 	},
 	boost::bind(binary_operator_<matrix_row<double>>, addings_extra, boost::placeholders::_1, boost::placeholders::_2)
 };
-
-//template<>
-//char* comma_<matrix_row<double>>(char * expression, matrix_row<double>& result)
-//{
-//	char* next = expression;
-//	matrix_row<double> _rhs;
-//	next = addings_(expression, result);
-//	expression = next;
-//
-//	while (next) {
-//		if (*next == ',') {
-//			expression = ++next;
-//			next = addings_(expression, _rhs);
-//			result.push_back(_rhs.back());
-//			expression = next;
-//		}
-//		else
-//			break;
-//	}
-//	return expression;
-//}
 template<> char* number_<matrix_row<double>>(char* expression, matrix_row<double>& result) {
 	char* end = nullptr;
 	result.push_back(strtod(expression, &end));
